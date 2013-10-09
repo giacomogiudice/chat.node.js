@@ -1,27 +1,41 @@
 var net = require('net');
-var sockets = [];
-var s = net.Server(function(socket)
-	{
-		sockets.push(socket);
-		console.log("user " + sockets.length + " connected");
-		socket.on('data',function(d)
-		{
-			var i = sockets.indexOf(socket);
-			for(var i=0; i<sockets.length; i++)
-			{
-				if(socket != sockets[i])
-				{
-						sockets[i].write("User "+ (i+1) + "> " + d);
-				}
-			}
-		});
+var clients = [];
+var server = net.Server(function(socket)
+{
+	//new user
+	clients.push(socket);
+	console.log("user " + clients.length + " connected from " +  socket.remoteAddress);
+	broadcast("<New user connected>\n",socket);
 
-		socket.on('end',function()
-		{	
-			var i = sockets.indexOf(socket);
-			console.log("user" + (i+1) + " disconnected");
-			delete sockets[i];
-		});
+	socket.on('data',function(d)
+	{
+		broadcast("User " + (clients.indexOf(socket)+1) + "> ",socket);
+		broadcast(d,socket);
 	});
-s.listen(8000);
+	socket.on('end',function()
+	{	
+		var i = clients.indexOf(socket);
+		console.log("user " + (i+1) + " disconnected");
+		broadcast("<User "+ (i+1) + " disconnected>\n",socket);
+		clients.splice(i,1);
+	});
+	socket.on('error',function(e)
+	{
+		console.log(e);
+	});
+});
+
+server.listen(8000);
 console.log("server started");
+
+function broadcast(message, author)
+{
+	for(var i=0; i<clients.length; i++)
+	{
+		
+		if(author != clients[i])
+		{
+			clients[i].write(message);
+		}
+	}
+}
